@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>은퇴 투자 시뮬레이터</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=IBM+Plex+Mono:wght@400;600&display=swap');
+:root{
+  --bg:#070d1a;--surface:#0f1929;--card:#141e2e;--card2:#192436;
+  --border:#1c2d42;--text:#dde6f5;--muted:#5a7399;
+  --isa:#06b6d4;--pen:#10b981;--irp:#8b5cf6;--gen:#f59e0b;--total:#fff;
+  --red:#f87171;--green:#34d399;--yellow:#fbbf24;
+  --r:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif;font-size:13px;line-height:1.6;}
+
+/* HERO */
+.hero{background:linear-gradient(135deg,#050c1a 0%,#0d1f3c 50%,#050c1a 100%);padding:28px 20px;text-align:center;border-bottom:1px solid var(--border);}
+.hero h1{font-size:clamp(18px,5vw,26px);font-weight:900;background:linear-gradient(90deg,#38bdf8,#34d399,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:5px;}
+.hero p{color:var(--muted);font-size:11px;}
+
+.wrap{max-width:1000px;margin:0 auto;padding:18px 14px;}
+
+/* 섹션 헤더 */
+.sh{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.sh::before{content:'';width:3px;height:12px;border-radius:2px;}
+.sh.isa::before{background:var(--isa);}
+.sh.pen::before{background:var(--pen);}
+.sh.irp::before{background:var(--irp);}
+.sh.gen::before{background:var(--gen);}
+.sh.out::before{background:var(--red);}
+.sh.tip::before{background:var(--yellow);}
+
+/* 카드 */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:14px;}
+.card.isa-card{border-color:rgba(6,182,212,.2);}
+.card.pen-card{border-color:rgba(16,185,129,.2);}
+.card.irp-card{border-color:rgba(139,92,246,.2);}
+.card.gen-card{border-color:rgba(245,158,11,.2);}
+.card.out-card{border-color:rgba(248,113,113,.2);}
+
+/* 그리드 */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+.g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;}
+
+/* 필드 */
+.f label{display:block;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.5px;margin-bottom:4px;}
+.f input,.f select{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:12px;padding:6px 9px;outline:none;transition:border-color .15s;}
+.f input:focus,.f select:focus{border-color:var(--isa);}
+.f select option{background:var(--surface);}
+
+/* 배지 */
+.badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;margin-left:5px;}
+.badge-isa{background:rgba(6,182,212,.15);color:var(--isa);}
+.badge-pen{background:rgba(16,185,129,.15);color:var(--pen);}
+.badge-irp{background:rgba(139,92,246,.15);color:var(--irp);}
+.badge-gen{background:rgba(245,158,11,.15);color:var(--gen);}
+
+/* 계좌 타이틀 */
+.act{font-size:13px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+
+/* 현재 보유금액 입력바 */
+.exist-bar{
+  display:grid;grid-template-columns:1fr 1fr;gap:10px;
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);
+  border-radius:6px;padding:10px 12px;margin-bottom:12px;
+}
+.exist-bar .f label{color:var(--text) !important;}
+
+/* IRP 안전자산 */
+.safe-bar{background:var(--surface);border-radius:5px;padding:8px 10px;font-size:11px;color:var(--muted);margin-top:8px;border:1px solid var(--border);}
+.safe-bar strong{color:var(--irp);}
+
+/* 실행 버튼 */
+.run-btn{width:100%;padding:13px;border-radius:var(--r);background:linear-gradient(90deg,#2563eb,#7c3aed);color:#fff;font-family:'Noto Sans KR',sans-serif;font-size:14px;font-weight:700;cursor:pointer;border:none;margin:14px 0;transition:opacity .15s;}
+.run-btn:hover{opacity:.88;}
+
+/* 결과 */
+#results{display:none;}
+
+/* 요약 카드 */
+.sum-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:16px;}
+.sc{background:var(--card2);border:1px solid var(--border);border-radius:var(--r);padding:12px;}
+.sc .lbl{font-size:10px;color:var(--muted);font-weight:600;letter-spacing:.4px;margin-bottom:4px;}
+.sc .val{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:700;}
+.sc .sub{font-size:10px;color:var(--muted);margin-top:2px;}
+
+/* 차트 */
+.chart-box{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:14px;}
+.chart-box h3{font-size:11px;font-weight:700;color:var(--muted);margin-bottom:10px;}
+.chart-box canvas{max-height:280px;}
+
+/* 테이블 */
+.tbl-box{background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:14px;}
+.tbl-hd{padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border);font-size:11px;font-weight:700;color:var(--muted);}
+.tbl-scroll{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:11.5px;}
+thead tr{background:var(--surface);}
+th{padding:8px 10px;text-align:right;font-weight:600;color:var(--muted);white-space:nowrap;border-bottom:1px solid var(--border);}
+th:first-child{text-align:left;}
+td{padding:7px 10px;text-align:right;font-family:'IBM Plex Mono',monospace;white-space:nowrap;border-bottom:1px solid rgba(28,45,66,.6);}
+td:first-child{font-family:'Noto Sans KR',sans-serif;text-align:left;font-weight:500;}
+tr:last-child td{border-bottom:none;}
+tr.crash td{background:rgba(248,113,113,.05);}
+tr.boom td{background:rgba(52,211,153,.04);}
+tr.withdraw td{background:rgba(245,158,11,.05);}
+
+.pos{color:var(--green);}
+.neg{color:var(--red);}
+.ic{color:var(--isa);}
+.pc{color:var(--pen);}
+.rc{color:var(--irp);}
+.gc{color:var(--gen);}
+.tc{color:var(--total);font-weight:700;}
+.mc{color:var(--muted);}
+
+/* 출금 섹션 */
+.out-result{background:var(--card2);border:1px solid rgba(248,113,113,.2);border-radius:var(--r);padding:14px;margin-bottom:14px;}
+.out-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.out-row:last-child{border-bottom:none;}
+.out-row .k{color:var(--muted);}
+.out-row .v{font-family:'IBM Plex Mono',monospace;font-weight:600;}
+
+/* TIP 박스 */
+.tip-box{background:rgba(251,191,36,.04);border:1px solid rgba(251,191,36,.2);border-radius:var(--r);padding:14px;margin-bottom:14px;}
+.tip-item{font-size:12px;padding:5px 0 5px 14px;position:relative;border-bottom:1px solid rgba(251,191,36,.1);}
+.tip-item:last-child{border-bottom:none;}
+.tip-item::before{content:'💡';position:absolute;left:0;top:5px;font-size:11px;}
+.tip-item strong{color:var(--yellow);}
+
+/* 반응형 */
+@media(max-width:600px){.g3,.g4{grid-template-columns:1fr 1fr;}.g2{grid-template-columns:1fr;}.sum-grid{grid-template-columns:1fr 1fr;}}
+</style>
+</head>
+<body>
+<div class="hero">
+  <h1>🏦 은퇴 투자 통합 시뮬레이터</h1>
+  <p>ISA · 연금저축 · IRP · 일반계좌 · 적립/거치 · 인출 전략 · 절세 팁</p>
+</div>
+<div class="wrap">
+
+<!-- 기본 설정 -->
+<div class="card">
+  <div class="sh" style="--c:var(--isa)">⚙️ 기본 설정</div>
+  <div class="g4">
+    <div class="f"><label>투자 시작 연도</label>
+      <select id="sYear"><option value="2026" selected>2026</option><option value="2025">2025</option><option value="2024">2024</option></select></div>
+    <div class="f"><label>투자 기간 (년)</label>
+      <input type="number" id="period" value="20" min="1" max="40"></div>
+    <div class="f"><label>수익률 시나리오</label>
+      <select id="scenario">
+        <option value="hist">역사패턴 반복</option>
+        <option value="bear">비관 (보수)</option>
+        <option value="mid" selected>중립 (기본)</option>
+        <option value="bull">낙관 (공격)</option>
+      </select></div>
+    <div class="f"><label>현재 나이</label>
+      <input type="number" id="curAge" value="45" min="20" max="70"></div>
+  </div>
+</div>
+
+<!-- ISA -->
+<div class="card isa-card">
+  <div class="act"><span style="color:var(--isa)">🏦 ISA 계좌</span><span class="badge badge-isa">비과세 200만/초과9.9%</span><span class="badge badge-isa">5년만기→연금저축이전</span></div>
+  <div class="exist-bar">
+    <div class="f"><label>📂 현재 보유금액 (만원) <span style="color:var(--muted);font-weight:400">— 이미 투자 중인 금액</span></label>
+      <input type="number" id="isa-exist" value="0" min="0" step="100" placeholder="0 = 신규 시작"></div>
+    <div class="f"><label>📂 현재 취득원가 (만원) <span style="color:var(--muted);font-weight:400">— 세금 계산용 원금</span></label>
+      <input type="number" id="isa-cost0" value="0" min="0" step="100" placeholder="보유금액과 같으면 0 수익"></div>
+  </div>
+  <div class="g3">
+    <div class="f"><label>ETF / 포트폴리오</label>
+      <select id="isa-etf">
+        <optgroup label="── 단일 ETF ──">
+          <option value="KR_NASDAQ">TIGER 미국나스닥100 (QQQ 대응)</option>
+          <option value="KR_NASDAQ2X" selected>KODEX 나스닥100레버리지(합성) (QLD 대응)</option>
+          <option value="KR_SP500">TIGER 미국S&P500 (SPY 대응)</option>
+          <option value="KR_SP500_2X">KODEX S&P500레버리지(합성) (SSO 대응)</option>
+          <option value="KR_GOLD">KODEX 골드선물(H)</option>
+          <option value="KR_BOND30">KODEX 미국30년국채(H)</option>
+        </optgroup>
+        <optgroup label="── 포트폴리오 ──">
+          <option value="PORT_PERM">영구 포트 (주식25+금25+장기채25+단기채25)</option>
+          <option value="PORT_ALL">올웨더 (주식30+장기채40+중기채15+금7.5+원자재7.5)</option>
+          <option value="PORT_KIM">김성일 사계절 (나스닥40+S&P500_20+금20+채권20)</option>
+          <option value="PORT_KANG">강환국 퀀트 (나스닥2x40+S&P500_30+금20+단기채10)</option>
+          <option value="PORT_NPS">국민연금형 (국내주30+해외주30+채권30+금10)</option>
+        </optgroup>
+      </select></div>
+    <div class="f"><label>추가 투자 방식</label>
+      <select id="isa-mode" onchange="toggleAmt('isa')">
+        <option value="lump" selected>거치식 (일시납)</option>
+        <option value="dca">적립식 (월납)</option>
+        <option value="none">추가 납입 없음</option>
+      </select></div>
+    <div class="f"><label id="isa-albl">추가 투자금 (만원)</label>
+      <input type="number" id="isa-amt" value="0" min="0" step="100"></div>
+  </div>
+</div>
+
+<!-- 연금저축 -->
+<div class="card pen-card">
+  <div class="act"><span style="color:var(--pen)">🌱 연금저축 (펀드)</span><span class="badge badge-pen">세액공제 16.5%~13.2%</span><span class="badge badge-pen">55세↑ 3.3~5.5% 분리과세</span></div>
+  <div class="exist-bar">
+    <div class="f"><label>📂 현재 보유금액 (만원)</label>
+      <input type="number" id="pen-exist" value="0" min="0" step="100" placeholder="0 = 신규 시작"></div>
+    <div class="f"><label>📂 현재 취득원가 (만원)</label>
+      <input type="number" id="pen-cost0" value="0" min="0" step="100" placeholder="납입 원금 합계"></div>
+  </div>
+  <div class="g3">
+    <div class="f"><label>ETF / 포트폴리오</label>
+      <select id="pen-etf">
+        <optgroup label="── 단일 ETF ──">
+          <option value="KR_NASDAQ" selected>TIGER 미국나스닥100</option>
+          <option value="KR_NASDAQ2X">KODEX 나스닥100레버리지(합성)</option>
+          <option value="KR_SP500">TIGER 미국S&P500</option>
+          <option value="KR_SP500_2X">KODEX S&P500레버리지(합성)</option>
+          <option value="KR_GOLD">KODEX 골드선물(H)</option>
+          <option value="KR_BOND30">KODEX 미국30년국채(H)</option>
+          <option value="KR_DIVIDEND">TIGER 미국배당다우존스</option>
+          <option value="KR_SCHD">ACE 미국배당다우존스(월배당)</option>
+        </optgroup>
+        <optgroup label="── 포트폴리오 ──">
+          <option value="PORT_PERM">영구 포트 (주식25+금25+장기채25+단기채25)</option>
+          <option value="PORT_ALL">올웨더 (주식30+장기채40+중기채15+금7.5+원자재7.5)</option>
+          <option value="PORT_KIM">김성일 사계절 (나스닥40+S&P20+금20+채권20)</option>
+          <option value="PORT_KANG">강환국 퀀트 (나스닥2x40+S&P30+금20+단기채10)</option>
+          <option value="PORT_NPS">국민연금형 (국내주30+해외주30+채권30+금10)</option>
+        </optgroup>
+      </select></div>
+    <div class="f"><label>추가 투자 방식</label>
+      <select id="pen-mode" onchange="toggleAmt('pen')">
+        <option value="dca" selected>적립식 (월납)</option>
+        <option value="lump">거치식 (일시납)</option>
+        <option value="none">추가 납입 없음</option>
+      </select></div>
+    <div class="f"><label id="pen-albl">월 납입금 (만원)</label>
+      <input type="number" id="pen-amt" value="50" min="0" step="5"></div>
+  </div>
+</div>
+
+<!-- IRP -->
+<div class="card irp-card">
+  <div class="act"><span style="color:var(--irp)">🔐 IRP</span><span class="badge badge-irp">안전자산 30% 의무</span><span class="badge badge-irp">세액공제 900만(연금저축 포함)</span></div>
+  <div class="exist-bar">
+    <div class="f"><label>📂 현재 보유금액 (만원)</label>
+      <input type="number" id="irp-exist" value="0" min="0" step="100" placeholder="0 = 신규 시작"></div>
+    <div class="f"><label>📂 현재 취득원가 (만원)</label>
+      <input type="number" id="irp-cost0" value="0" min="0" step="100" placeholder="납입 원금 합계"></div>
+  </div>
+  <div class="g3">
+    <div class="f"><label>위험자산 70% ETF</label>
+      <select id="irp-etf">
+        <optgroup label="── 단일 ETF (70%) ──">
+          <option value="KR_NASDAQ" selected>TIGER 미국나스닥100 (70%)</option>
+          <option value="KR_SP500">TIGER 미국S&P500 (70%)</option>
+          <option value="KR_NASDAQ2X">KODEX 나스닥100레버리지 (70%)</option>
+          <option value="KR_DIVIDEND">TIGER 미국배당다우존스 (70%)</option>
+        </optgroup>
+        <optgroup label="── 포트폴리오 (70%) ──">
+          <option value="PORT_KIM_IRP">김성일 사계절 70% (나스닥40+S&P30)</option>
+          <option value="PORT_KANG_IRP">강환국 퀀트 70% (나스닥2x40+S&P30)</option>
+        </optgroup>
+      </select></div>
+    <div class="f"><label>추가 투자 방식</label>
+      <select id="irp-mode" onchange="toggleAmt('irp')">
+        <option value="dca" selected>적립식 (월납)</option>
+        <option value="lump">거치식 (일시납)</option>
+        <option value="none">추가 납입 없음</option>
+      </select></div>
+    <div class="f"><label id="irp-albl">월 납입금 (만원)</label>
+      <input type="number" id="irp-amt" value="30" min="0" step="5"></div>
+  </div>
+  <div class="safe-bar">🛡️ 안전자산 <strong>30% 자동 적용</strong>: KODEX 미국30년국채(H) 20% + KODEX 단기채권 10% — 장기채로 금리 하락 시 헤지 효과</div>
+</div>
+
+<!-- 일반계좌 -->
+<div class="card gen-card">
+  <div class="act"><span style="color:var(--gen)">📈 일반계좌</span><span class="badge badge-gen">양도세22% (공제250만)</span></div>
+  <div class="exist-bar">
+    <div class="f"><label>📂 현재 보유금액 (만원)</label>
+      <input type="number" id="gen-exist" value="0" min="0" step="100" placeholder="0 = 신규 시작"></div>
+    <div class="f"><label>📂 현재 취득원가 (만원)</label>
+      <input type="number" id="gen-cost0" value="0" min="0" step="100" placeholder="매수 당시 원금 합계"></div>
+  </div>
+  <div class="g3">
+    <div class="f"><label>ETF / 포트폴리오</label>
+      <select id="gen-etf">
+        <optgroup label="── 해외 ETF (직접 투자) ──">
+          <option value="TQQQ" selected>TQQQ (나스닥100 3x)</option>
+          <option value="QLD">QLD (나스닥100 2x)</option>
+          <option value="QQQ">QQQ (나스닥100)</option>
+          <option value="UPRO">UPRO (S&P500 3x)</option>
+          <option value="SSO">SSO (S&P500 2x)</option>
+          <option value="SPY">SPY (S&P500)</option>
+          <option value="SOXL">SOXL (반도체 3x)</option>
+        </optgroup>
+        <optgroup label="── 국내 ETF ──">
+          <option value="KR_NASDAQ">TIGER 미국나스닥100</option>
+          <option value="KR_SP500">TIGER 미국S&P500</option>
+          <option value="KR_NASDAQ2X">KODEX 나스닥100레버리지(합성)</option>
+        </optgroup>
+        <optgroup label="── 포트폴리오 ──">
+          <option value="PORT_PERM">영구 포트 (주식25+금25+장기채25+단기채25)</option>
+          <option value="PORT_ALL">올웨더 (주식30+장기채40+중기채15+금7.5+원자재7.5)</option>
+          <option value="PORT_KIM">김성일 사계절 (나스닥40+S&P20+금20+채권20)</option>
+          <option value="PORT_KANG">강환국 퀀트 (나스닥2x40+S&P30+금20+단기채10)</option>
+          <option value="PORT_NPS">국민연금형 (국내주30+해외주30+채권30+금10)</option>
+        </optgroup>
+      </select></div>
+    <div class="f"><label>추가 투자 방식</label>
+      <select id="gen-mode" onchange="toggleAmt('gen')">
+        <option value="dca" selected>적립식 (월납)</option>
+        <option value="lump">거치식 (일시납)</option>
+        <option value="none">추가 납입 없음</option>
+      </select></div>
+    <div class="f"><label id="gen-albl">월 납입금 (만원)</label>
+      <input type="number" id="gen-amt" value="100" min="0" step="10"></div>
+  </div>
+</div>
+
+<!-- 인출 설정 -->
+<div class="card out-card">
+  <div class="sh out">💸 인출 설정</div>
+  <div class="g4">
+    <div class="f"><label>인출 시작 나이</label>
+      <input type="number" id="outAge" value="65" min="50" max="80"></div>
+    <div class="f"><label>월 목표 수령액 (만원)</label>
+      <input type="number" id="outMonthly" value="300" min="50" step="50"></div>
+    <div class="f"><label>건강보험 유형</label>
+      <select id="hiType">
+        <option value="local">지역가입자</option>
+        <option value="dependent">피부양자 (피부양자 유지)</option>
+      </select></div>
+    <div class="f"><label>기타 연간 소득 (만원)</label>
+      <input type="number" id="otherIncome" value="0" min="0" step="100"></div>
+  </div>
+  <div style="margin-top:10px;padding:8px 10px;background:var(--surface);border-radius:5px;font-size:11px;color:var(--muted);">
+    ⚡ <strong style="color:var(--yellow)">자동 최적화</strong>: 시뮬레이션 실행 시 계좌별 세후 실수령액이 최대가 되는 인출 순서·금액을 자동 계산합니다
+  </div>
+</div>
+
+<button class="run-btn" onclick="runSim()">🚀 시뮬레이션 실행 + 최적 인출 계산</button>
+
+<!-- 결과 -->
+<div id="results">
+  <div class="sh" style="--c:#fff">📊 투자 결과</div>
+  <div class="sum-grid" id="sumCards"></div>
+
+  <div class="chart-box"><h3>📈 계좌별 자산 성장 (세후)</h3><canvas id="growChart"></canvas></div>
+  <div class="chart-box"><h3>📊 연도별 수익률</h3><canvas id="rateChart"></canvas></div>
+
+  <div class="tbl-box">
+    <div class="tbl-hd">📋 연도별 계좌별 자산 상세</div>
+    <div class="tbl-scroll"><table><thead id="tHead"></thead><tbody id="tBody"></tbody></table></div>
+  </div>
+
+  <!-- 인출 최적화 -->
+  <div class="sh out" style="margin-top:8px">💸 최적 인출 전략</div>
+  <div id="outSection"></div>
+
+  <!-- 절세 팁 -->
+  <div class="sh tip" style="margin-top:8px">💡 AI 절세 & 투자 팁</div>
+  <div class="tip-box" id="tipBox"></div>
+
+  <div style="font-size:10px;color:var(--muted);margin-top:14px;line-height:1.9;border-top:1px solid var(--border);padding-top:12px;">
+    ※ 국내 ETF 수익률: 해외 원지수 ETF 기준 근사치 적용 (환헤지 비용 미반영) · 역사패턴은 해외ETF 실제 수익률 순환 적용<br>
+    ※ 연금소득세: 연금저축·IRP 연금수령 시 3.3~5.5% 분리과세 (나이별 상이) · 건보료: 지역가입자 기준 7.09% (2024년)<br>
+    ※ 세금·수수료 단순화 적용 · 과거 수익률이 미래를 보장하지 않습니다
+  </div>
+</div>
+</div>
+
+<script>
+// ── 데이터 ──
+const HIST = {
+  QQQ:  [0.016,0.071,0.190,-0.417,0.547,0.200,0.034,0.181,0.366,0.192,0.095,0.071,0.327,-0.001,0.390,0.486,0.274,-0.326,0.564,0.257,0.195],
+  QLD:  [0.390,-0.7288,1.2117,0.400,0.070,0.363,0.735,0.385,0.190,0.142,0.655,-0.002,0.780,0.973,0.548,-0.6052,1.1772,0.514,0.3036],
+  TQQQ: [-0.0805,0.5229,1.3973,0.5709,0.1723,0.1138,1.1806,-0.1981,1.3383,1.1005,0.8298,-0.7908,1.9804,0.5828,0.3435],
+  SPY:  [0.049,0.158,0.055,-0.370,0.265,0.151,0.021,0.160,0.324,0.136,0.014,0.119,0.218,-0.044,0.314,0.184,0.288,-0.181,0.264,0.250,0.252],
+  SSO:  [0.082,-0.650,0.516,0.304,0.044,0.322,0.640,0.274,0.030,0.238,0.434,-0.089,0.619,0.366,0.554,-0.368,0.519,0.494,0.495],
+  UPRO: [0.414,0.060,0.475,0.953,0.398,0.038,0.349,0.641,-0.131,0.934,0.524,0.825,-0.541,0.776,0.725,0.720],
+  SOXL: [-0.463,0.642,1.127,0.128,-0.357,0.852,1.044,-0.514,1.291,1.268,0.534,-0.884,2.102,0.143,-0.201],
+  BOND: [0.01,0.02,0.08,-0.02,0.01,0.03,0.09,0.03,0.02,0.01,0.01,0.01,0.02,-0.01,0.06,0.10,-0.02,-0.30,0.04,0.03,0.02],
+  GOLD: [0.18,0.24,0.31,0.05,0.24,0.30,0.10,0.07,-0.28,-0.02,-0.11,0.09,0.13,-0.02,0.18,0.25,-0.04,0.01,0.13,0.27,0.27],
+};
+
+// 포트폴리오 가중평균 수익률 계산
+function portRate(port, idx) {
+  const histLen = (a) => HIST[a] ? HIST[a].length : 20;
+  const get = (a, i) => HIST[a] ? HIST[a][i % HIST[a].length] : 0.07;
+  switch(port) {
+    case 'PORT_PERM': return get('SPY',idx)*0.25 + get('GOLD',idx)*0.25 + get('BOND',idx)*0.25 + 0.02*0.25;
+    case 'PORT_ALL':  return get('SPY',idx)*0.30 + get('BOND',idx)*0.40 + get('BOND',idx)*0.15 + get('GOLD',idx)*0.075 + 0.05*0.075;
+    case 'PORT_KIM':  return get('QQQ',idx)*0.40 + get('SPY',idx)*0.20 + get('GOLD',idx)*0.20 + get('BOND',idx)*0.20;
+    case 'PORT_KANG': return get('QLD',idx)*0.40 + get('SPY',idx)*0.30 + get('GOLD',idx)*0.20 + 0.02*0.10;
+    case 'PORT_NPS':  return 0.08*0.30 + get('SPY',idx)*0.30 + get('BOND',idx)*0.30 + get('GOLD',idx)*0.10;
+    case 'PORT_KIM_IRP': return get('QQQ',idx)*0.40 + get('SPY',idx)*0.30;
+    case 'PORT_KANG_IRP':return get('QLD',idx)*0.40 + get('SPY',idx)*0.30;
+    // 국내 ETF (해외ETF 수익률 근사)
+    case 'KR_NASDAQ': return get('QQQ',idx);
+    case 'KR_NASDAQ2X': return get('QLD',idx);
+    case 'KR_SP500': return get('SPY',idx);
+    case 'KR_SP500_2X': return get('SSO',idx);
+    case 'KR_GOLD': return get('GOLD',idx);
+    case 'KR_BOND30': return get('BOND',idx)*2.5;
+    case 'KR_DIVIDEND': return get('SPY',idx)*0.85 + 0.04;
+    case 'KR_SCHD': return get('SPY',idx)*0.80 + 0.05;
+    default: return HIST[port] ? HIST[port][idx % HIST[port].length] : 0.10;
+  }
+}
+
+// CAGR 추정 (시나리오별 배율)
+const CAGR_EST = {
+  PORT_PERM:0.08, PORT_ALL:0.09, PORT_KIM:0.14, PORT_KANG:0.21, PORT_NPS:0.07,
+  PORT_KIM_IRP:0.13, PORT_KANG_IRP:0.19,
+  KR_NASDAQ:0.148, KR_NASDAQ2X:0.263, KR_SP500:0.110, KR_SP500_2X:0.188,
+  KR_GOLD:0.07, KR_BOND30:0.05, KR_DIVIDEND:0.10, KR_SCHD:0.10,
+  QQQ:0.148, QLD:0.263, TQQQ:0.392, SPY:0.110, SSO:0.188, UPRO:0.372, SOXL:0.134,
+};
+const SMULT = {hist:1, bear:0.5, mid:0.8, bull:1.2};
+
+function getRate(etf, i, scenario) {
+  if(scenario === 'hist') return portRate(etf, i);
+  const base = CAGR_EST[etf] || 0.10;
+  return base * SMULT[scenario];
+}
+
+// IRP: 위험70% + 안전30% 혼합
+function irpRate(etf, i, scenario) {
+  const risk = getRate(etf, i, scenario) * 0.70;
+  const safe = (getRate('KR_BOND30', i, scenario)*0.20 + 0.02*0.10);
+  return risk + safe;
+}
+
+function fmt(n) {
+  n = Math.round(n);
+  if(n<0) return '-'+fmt(-n);
+  if(n>=100000000) return (n/100000000).toFixed(1)+'조';
+  if(n>=10000000)  return Math.round(n/10000000)*10+'억';
+  if(n>=1000000)   return (n/10000).toFixed(0)+'억';
+  if(n>=100000)    return (n/10000).toFixed(1)+'억';
+  if(n>=10000)     return (n/10000).toFixed(2)+'억';
+  if(n>=1000)      return (n/1000).toFixed(1)+'천만';
+  return n+'만';
+}
+function fmtR(r){const p=(r*100).toFixed(1);return r>=0?`<span class="pos">+${p}%</span>`:`<span class="neg">${p}%</span>`;}
+
+// 세후 계산
+function atISA(v,c){const g=v-c;return v-Math.max(0,g-200)*0.099;}
+function atPEN(v,c,age){const g=v-c;const t=age<70?0.055:age<80?0.044:0.033;return v-Math.max(0,g)*t;}
+function atIRP(v,c,age){return atPEN(v,c,age);}
+function atGEN(v,c){const g=v-c;return v-Math.max(0,g-250)*0.22;}
+
+// 건보료 계산
+function calcHI(penIncome, genIncome, hiType, otherIncome){
+  if(hiType==='dependent') return 0;
+  const total = penIncome + genIncome + otherIncome;
+  if(total <= 2000) return 0;
+  return Math.min(total * 0.0709, 400); // 월 상한 약 400만
+}
+
+let growInst=null, rateInst=null;
+
+function toggleAmt(acc){
+  const m=document.getElementById(`${acc}-mode`).value;
+  const lbl=document.getElementById(`${acc}-albl`);
+  const inp=document.getElementById(`${acc}-amt`);
+  if(m==='none'){lbl.textContent='추가 납입 없음';inp.disabled=true;inp.value=0;}
+  else{inp.disabled=false;lbl.textContent=m==='lump'?'추가 투자금 (만원)':'월 납입금 (만원)';}
+}
+
+function runSim(){
+  const sYear=parseInt(document.getElementById('sYear').value);
+  const period=parseInt(document.getElementById('period').value);
+  const scenario=document.getElementById('scenario').value;
+  const curAge=parseInt(document.getElementById('curAge').value);
+  const outAge=parseInt(document.getElementById('outAge').value);
+  const outMonthly=parseFloat(document.getElementById('outMonthly').value);
+  const hiType=document.getElementById('hiType').value;
+  const otherIncome=parseFloat(document.getElementById('otherIncome').value)||0;
+
+  const isaEtf=document.getElementById('isa-etf').value;
+  const isaMode=document.getElementById('isa-mode').value;
+  const isaAmt=parseFloat(document.getElementById('isa-amt').value)||0;
+  const isaExist=parseFloat(document.getElementById('isa-exist').value)||0;
+  const isaCost0=parseFloat(document.getElementById('isa-cost0').value)||isaExist;
+
+  const penEtf=document.getElementById('pen-etf').value;
+  const penMode=document.getElementById('pen-mode').value;
+  const penAmt=parseFloat(document.getElementById('pen-amt').value)||0;
+  const penExist=parseFloat(document.getElementById('pen-exist').value)||0;
+  const penCost0=parseFloat(document.getElementById('pen-cost0').value)||penExist;
+
+  const irpEtf=document.getElementById('irp-etf').value;
+  const irpMode=document.getElementById('irp-mode').value;
+  const irpAmt=parseFloat(document.getElementById('irp-amt').value)||0;
+  const irpExist=parseFloat(document.getElementById('irp-exist').value)||0;
+  const irpCost0=parseFloat(document.getElementById('irp-cost0').value)||irpExist;
+
+  const genEtf=document.getElementById('gen-etf').value;
+  const genMode=document.getElementById('gen-mode').value;
+  const genAmt=parseFloat(document.getElementById('gen-amt').value)||0;
+  const genExist=parseFloat(document.getElementById('gen-exist').value)||0;
+  const genCost0=parseFloat(document.getElementById('gen-cost0').value)||genExist;
+
+  // 시뮬레이션 초기값 = 현재 보유금액 + 신규 거치식 납입
+  let isaV=isaExist+(isaMode==='lump'?isaAmt:0), isaC=isaCost0+(isaMode==='lump'?isaAmt:0);
+  let penV=penExist+(penMode==='lump'?penAmt:0), penC=penCost0+(penMode==='lump'?penAmt:0);
+  let irpV=irpExist+(irpMode==='lump'?irpAmt:0), irpC=irpCost0+(irpMode==='lump'?irpAmt:0);
+  let genV=genExist+(genMode==='lump'?genAmt:0), genC=genCost0+(genMode==='lump'?genAmt:0);
+
+  const rows=[];
+  const outYearOffset = outAge - curAge;
+
+  for(let i=0;i<period;i++){
+    const year=sYear+i;
+    const age=curAge+i;
+    const ir=getRate(isaEtf,i,scenario);
+    const pr=getRate(penEtf,i,scenario);
+    const rr=irpRate(irpEtf,i,scenario);
+    const gr=getRate(genEtf,i,scenario);
+
+    if(isaMode==='dca'){isaV+=isaAmt*12;isaC+=isaAmt*12;}
+    if(penMode==='dca'){penV+=penAmt*12;penC+=penAmt*12;}
+    if(irpMode==='dca'){irpV+=irpAmt*12;irpC+=irpAmt*12;}
+    if(genMode==='dca'){genV+=genAmt*12;genC+=genAmt*12;}
+
+    isaV*=(1+ir); penV*=(1+pr); irpV*=(1+rr); genV*=(1+gr);
+
+    const isaAt=Math.round(atISA(isaV,isaC));
+    const penAt=Math.round(atPEN(penV,penC,age));
+    const irpAt=Math.round(atIRP(irpV,irpC,age));
+    const genAt=Math.round(atGEN(genV,genC));
+    const total=isaAt+penAt+irpAt+genAt;
+
+    rows.push({year,age,i,ir,pr,rr,gr,isaV,isaC,isaAt,penV,penC,penAt,irpV,irpC,irpAt,genV,genC,genAt,total,isOut:age>=outAge});
+  }
+
+  // 최적 인출 계산
+  const lastRow = rows[rows.length-1];
+  const outAnnual = outMonthly * 12;
+  const outResult = calcOptimalWithdraw(lastRow, outAnnual, outAge, hiType, otherIncome);
+
+  // 렌더링
+  renderSummary(rows, outResult, isaAmt, penAmt, irpAmt, genAmt, isaMode, penMode, irpMode, genMode, period, isaCost0, penCost0, irpCost0, genCost0);
+  renderCharts(rows);
+  renderTable(rows);
+  renderWithdraw(outResult, outAge, outMonthly);
+  renderTips(lastRow, outResult, outAge, isaEtf, penEtf, irpEtf, genEtf, hiType);
+  document.getElementById('results').style.display='block';
+  document.getElementById('results').scrollIntoView({behavior:'smooth'});
+}
+
+function calcOptimalWithdraw(lastRow, outAnnual, outAge, hiType, otherIncome){
+  // 최적 인출 순서: 연금저축 → IRP → ISA → 일반계좌
+  // 연금저축+IRP: 합산 1,500만 이하 저율과세 / 초과 시 종합과세
+  const taxRate = outAge<70?0.055:outAge<80?0.044:0.033;
+
+  // 각 계좌 세후 연간 인출 가능액
+  const penMax = lastRow.penAt;
+  const irpMax = lastRow.irpAt;
+  const isaMax = lastRow.isaAt;
+  const genMax = lastRow.genAt;
+
+  let remain = outAnnual;
+  let planPen=0, planIrp=0, planIsa=0, planGen=0;
+
+  // 1. 연금저축: 연 1,200만까지 분리과세 유리
+  const penSafe = Math.min(penMax, 1200, remain);
+  planPen = penSafe; remain -= penSafe;
+
+  // 2. IRP: 연금저축과 합산 1,500만까지
+  const irpSafe = Math.min(irpMax, Math.max(0, 1500-planPen), remain);
+  planIrp = irpSafe; remain -= irpSafe;
+
+  // 3. ISA 해지 (5년 후 → 연금저축 이전 추천)
+  const isaPlan = Math.min(isaMax/20, remain); // 20년 분할 가정
+  planIsa = isaPlan; remain -= isaPlan;
+
+  // 4. 일반계좌
+  planGen = Math.min(genMax/20, remain);
+
+  // 세금 계산
+  const penTax = planPen * taxRate;
+  const irpTax = planIrp * taxRate;
+  const isaTax = 0; // ISA는 해지 시 이미 정산
+  const genTax = Math.max(0, planGen - 250) * 0.22;
+
+  const netPen = planPen - penTax;
+  const netIrp = planIrp - irpTax;
+  const netIsa = planIsa;
+  const netGen = planGen - genTax;
+  const netTotal = netPen + netIrp + netIsa + netGen;
+
+  // 건보료 (연간 → 월)
+  const penAnnualIncome = planPen;
+  const genAnnualIncome = planGen;
+  const hiMonthly = calcHI(penAnnualIncome, genAnnualIncome, hiType, otherIncome);
+
+  return {
+    planPen, planIrp, planIsa, planGen,
+    penTax, irpTax, isaTax, genTax,
+    netPen, netIrp, netIsa, netGen, netTotal,
+    hiMonthly, netAfterHI: Math.max(0, netTotal/12 - hiMonthly),
+    taxRate,
+  };
+}
+
+function renderSummary(rows, out, isaAmt, penAmt, irpAmt, genAmt, isaMode, penMode, irpMode, genMode, period, isaCost0, penCost0, irpCost0, genCost0){
+  const last=rows[rows.length-1];
+  // 원금 = 현재 보유(취득원가 기준) + 앞으로 납입할 금액
+  let principal=0;
+  principal += (isaCost0||0) + (isaMode==='lump'?isaAmt : isaMode==='dca'?isaAmt*12*period : 0);
+  principal += (penCost0||0) + (penMode==='lump'?penAmt : penMode==='dca'?penAmt*12*period : 0);
+  principal += (irpCost0||0) + (irpMode==='lump'?irpAmt : irpMode==='dca'?irpAmt*12*period : 0);
+  principal += (genCost0||0) + (genMode==='lump'?genAmt : genMode==='dca'?genAmt*12*period : 0);
+  if(principal <= 0) principal = 1; // 0으로 나누기 방지
+
+  document.getElementById('sumCards').innerHTML=`
+    <div class="sc"><div class="lbl">납입 원금</div><div class="val mc">${fmt(principal)}</div><div class="sub">${period}년 합계</div></div>
+    <div class="sc" style="border-color:rgba(6,182,212,.25)"><div class="lbl">ISA (세후)</div><div class="val ic">${fmt(last.isaAt)}</div><div class="sub">비과세 200만</div></div>
+    <div class="sc" style="border-color:rgba(16,185,129,.25)"><div class="lbl">연금저축 (세후)</div><div class="val pc">${fmt(last.penAt)}</div><div class="sub">연금수령 ${(out.taxRate*100).toFixed(1)}%</div></div>
+    <div class="sc" style="border-color:rgba(139,92,246,.25)"><div class="lbl">IRP (세후)</div><div class="val rc">${fmt(last.irpAt)}</div><div class="sub">안전30% 포함</div></div>
+    <div class="sc" style="border-color:rgba(245,158,11,.25)"><div class="lbl">일반계좌 (세후)</div><div class="val gc">${fmt(last.genAt)}</div><div class="sub">양도세 22%</div></div>
+    <div class="sc" style="border-color:rgba(255,255,255,.2);background:rgba(255,255,255,.03)"><div class="lbl">총 자산 (세후)</div><div class="val tc">${fmt(last.total)}</div><div class="sub">원금 ${(last.total/principal).toFixed(1)}배</div></div>
+    <div class="sc" style="border-color:rgba(248,113,113,.25)"><div class="lbl">월 실수령 (최적 인출)</div><div class="val" style="color:var(--red)">${fmt(Math.round(out.netAfterHI))}</div><div class="sub">건보료 ${fmt(Math.round(out.hiMonthly))} 차감 후</div></div>
+  `;
+}
+
+function renderCharts(rows){
+  const labels=rows.map(r=>r.year+'');
+  const ds=[
+    {label:'ISA',data:rows.map(r=>r.isaAt),borderColor:'#06b6d4',backgroundColor:'rgba(6,182,212,.1)',fill:true,tension:0.3,pointRadius:2},
+    {label:'연금저축',data:rows.map(r=>r.penAt),borderColor:'#10b981',backgroundColor:'rgba(16,185,129,.08)',fill:true,tension:0.3,pointRadius:2},
+    {label:'IRP',data:rows.map(r=>r.irpAt),borderColor:'#8b5cf6',backgroundColor:'rgba(139,92,246,.08)',fill:true,tension:0.3,pointRadius:2},
+    {label:'일반계좌',data:rows.map(r=>r.genAt),borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,.08)',fill:true,tension:0.3,pointRadius:2},
+    {label:'합계',data:rows.map(r=>r.total),borderColor:'#fff',backgroundColor:'rgba(255,255,255,.03)',fill:true,tension:0.3,pointRadius:3,borderWidth:2},
+  ];
+  const opts={responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:'#5a7399',font:{size:10}}},tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${fmt(c.raw)}`}}},
+    scales:{x:{ticks:{color:'#5a7399',font:{size:10}},grid:{color:'#1c2d42'}},
+      y:{ticks:{color:'#5a7399',font:{size:10},callback:v=>fmt(v)},grid:{color:'#1c2d42'}}}};
+  if(growInst)growInst.destroy();
+  growInst=new Chart(document.getElementById('growChart').getContext('2d'),{type:'line',data:{labels,datasets:ds},options:opts});
+
+  // 수익률 차트 (ISA 기준)
+  const rDs=[
+    {label:'ISA',data:rows.map(r=>+(r.ir*100).toFixed(1)),backgroundColor:rows.map(r=>r.ir>=0?'rgba(6,182,212,.7)':'rgba(248,113,113,.7)'),borderRadius:2},
+    {label:'일반',data:rows.map(r=>+(r.gr*100).toFixed(1)),backgroundColor:rows.map(r=>r.gr>=0?'rgba(245,158,11,.6)':'rgba(248,113,113,.5)'),borderRadius:2},
+  ];
+  if(rateInst)rateInst.destroy();
+  rateInst=new Chart(document.getElementById('rateChart').getContext('2d'),{type:'bar',data:{labels,datasets:rDs},
+    options:{...opts,scales:{x:opts.scales.x,y:{ticks:{color:'#5a7399',font:{size:10},callback:v=>v+'%'},grid:{color:'#1c2d42'}}}}});
+}
+
+function renderTable(rows){
+  document.getElementById('tHead').innerHTML=`<tr>
+    <th>년차(연도/나이)</th>
+    <th class="ic">ISA 수익률</th><th class="ic">ISA 세후</th>
+    <th class="pc">연금 수익률</th><th class="pc">연금 세후</th>
+    <th class="rc">IRP 수익률</th><th class="rc">IRP 세후</th>
+    <th class="gc">일반 수익률</th><th class="gc">일반 세후</th>
+    <th class="tc">합계</th>
+  </tr>`;
+  let tb='';
+  rows.forEach(r=>{
+    const cls=r.isOut?'withdraw':((r.ir<=-0.4||r.gr<=-0.4)?'crash':((r.ir>=1.0||r.gr>=1.0)?'boom':''));
+    tb+=`<tr class="${cls}">
+      <td>${r.i+1}년차 (${r.year}/${r.age}세)</td>
+      <td>${fmtR(r.ir)}</td><td class="ic">${fmt(r.isaAt)}</td>
+      <td>${fmtR(r.pr)}</td><td class="pc">${fmt(r.penAt)}</td>
+      <td>${fmtR(r.rr)}</td><td class="rc">${fmt(r.irpAt)}</td>
+      <td>${fmtR(r.gr)}</td><td class="gc">${fmt(r.genAt)}</td>
+      <td class="tc">${fmt(r.total)}</td>
+    </tr>`;
+  });
+  document.getElementById('tBody').innerHTML=tb;
+}
+
+function renderWithdraw(out, outAge, monthly){
+  const taxAgeLbl = outAge<70?'70세 미만 5.5%':outAge<80?'70~80세 4.4%':'80세+ 3.3%';
+  document.getElementById('outSection').innerHTML=`
+    <div class="out-result">
+      <div style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:10px;">최적 인출 플랜 (연간 목표: ${fmt(monthly*12)}) · ${taxAgeLbl}</div>
+      <div class="out-row"><span class="k">① 연금저축 연금수령 (연간)</span><span class="v pc">${fmt(Math.round(out.planPen))} <span style="color:var(--muted);font-size:10px">→ 세금 ${fmt(Math.round(out.penTax))} → 세후 ${fmt(Math.round(out.netPen))}</span></span></div>
+      <div class="out-row"><span class="k">② IRP 연금수령 (연간)</span><span class="v rc">${fmt(Math.round(out.planIrp))} <span style="color:var(--muted);font-size:10px">→ 세금 ${fmt(Math.round(out.irpTax))} → 세후 ${fmt(Math.round(out.netIrp))}</span></span></div>
+      <div class="out-row"><span class="k">③ ISA 분할 인출 (연간 추정)</span><span class="v ic">${fmt(Math.round(out.planIsa))} <span style="color:var(--muted);font-size:10px">→ 이미 과세 완료</span></span></div>
+      <div class="out-row"><span class="k">④ 일반계좌 인출 (연간)</span><span class="v gc">${fmt(Math.round(out.planGen))} <span style="color:var(--muted);font-size:10px">→ 양도세 ${fmt(Math.round(out.genTax))} → 세후 ${fmt(Math.round(out.netGen))}</span></span></div>
+      <div style="height:1px;background:rgba(248,113,113,.2);margin:8px 0;"></div>
+      <div class="out-row"><span class="k">세후 연간 합계</span><span class="v tc">${fmt(Math.round(out.netTotal))}</span></div>
+      <div class="out-row"><span class="k">세후 월 환산</span><span class="v tc">${fmt(Math.round(out.netTotal/12))}</span></div>
+      <div class="out-row"><span class="k">건강보험료 (월, 지역가입자)</span><span class="v" style="color:var(--red)">-${fmt(Math.round(out.hiMonthly))}</span></div>
+      <div class="out-row" style="background:rgba(255,255,255,.03);border-radius:5px;padding:8px 0;"><span class="k" style="font-weight:700;color:var(--text)">💰 실제 월 수령액</span><span class="v" style="font-size:16px;color:var(--yellow)">${fmt(Math.round(out.netAfterHI))}</span></div>
+    </div>
+  `;
+}
+
+function renderTips(last, out, outAge, isaEtf, penEtf, irpEtf, genEtf, hiType){
+  const tips=[
+    `<strong>ISA → 연금저축 이전 전략</strong>: ISA 만기(5년) 해지 후 연금저축에 이전하면 <strong>최대 300만원 추가 세액공제</strong> (이전금액의 10%). 예: ISA 7,000만 해지 → 연금저축 이전 시 300만 세액공제 + ISA 과세분 9.9%만 내고 연금저축에서 3.3~5.5% 저율과세로 인출 가능.`,
+    `<strong>연금저축+IRP 연간 합산 1,500만원 이하 유지</strong>: 초과 시 종합과세(최대 46.2%) → 분리과세 유지를 위해 두 계좌 합산 연 1,500만원 이하로 수령. 현재 최적 플랜: 연금저축 ${fmt(Math.round(out.planPen/12))}/월 + IRP ${fmt(Math.round(out.planIrp/12))}/월.`,
+    `<strong>건보료 폭탄 방지</strong>: 금융소득(배당+이자) 2,000만원 초과 시 지역가입자 건보료 폭등. 일반계좌 배당ETF 대신 <strong>연금저축 내 SCHD</strong>(배당소득 건보료 비과세) 활용 추천.`,
+    `<strong>IRP 70% 나스닥 + 30% 장기채 조합</strong>: IRP 안전자산 30%를 <strong>KODEX 미국30년국채(H)</strong>로 채우면 금리 하락기 헤지 + 주식 폭락 시 역상관 효과. 단순 단기채보다 장기적으로 유리.`,
+    `<strong>일반계좌 TQQQ 장기 보유 핵심</strong>: 폭락 시(-40% 이하) 현금 10~30% 투입 후 회복 시 현금 미복원 전략. 역사 백테스트 CAGR 29% (QLD 단독 26.3% 대비 +2.7%p), MDD -60.5%로 개선.`,
+    `<strong>최적 인출 순서</strong>: ① 연금저축(저율과세) → ② IRP(저율과세) → ③ ISA 분할(이미 과세완료) → ④ 일반계좌(양도세 관리). 일반계좌는 손실 구간 활용 손익통산으로 양도세 절감 가능.`,
+  ];
+  document.getElementById('tipBox').innerHTML = tips.map(t=>`<div class="tip-item">${t}</div>`).join('');
+}
+</script>
+</body>
+</html>
